@@ -42,7 +42,7 @@ function __git.init
   __git.create_abbr gscam      git commit -S -a -m
   __git.create_abbr gcfx       git commit --fixup
   __git.create_abbr gcf        git config --list
-  __git.create_abbr gcl        git clone
+  __git.create_abbr gcl        git clone --recursive
   __git.create_abbr gclean     git clean -di
   __git.create_abbr gclean!    git clean -dfx
   __git.create_abbr gclean!!   "git reset --hard; and git clean -dfx"
