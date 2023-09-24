@@ -1,12 +1,13 @@
 <img src="https://cdn.rawgit.com/oh-my-fish/oh-my-fish/e4f1c2e0219a17e2c748b824004c8d0b38055c16/docs/logo.svg" align="left" width="144px" height="144px"/>
 
 #### git
-> A git aliases plugin for [Oh My Fish][omf-link] and [Fisher][fisher-link] based loosely on the
-[Oh My Zsh Git Plugin][omz-git-plugin].
+> A git aliases plugin for [Oh My Fish][omf-link] and [Fisher][fisher-link],
+> based loosely on the [Oh My Zsh Git Plugin][omz-git-plugin].
 
 [![MIT License](https://img.shields.io/badge/license-MIT-007EC7.svg?style=flat-square)](/LICENSE)
-[![Fish Shell Version](https://img.shields.io/badge/fish-v2.2.0-007EC7.svg?style=flat-square)](https://fishshell.com)
+[![Fish Shell Version](https://img.shields.io/badge/fish-v3.5.0-007EC7.svg?style=flat-square)](https://fishshell.com)
 [![Oh My Fish Framework](https://img.shields.io/badge/Oh%20My%20Fish-Framework-007EC7.svg?style=flat-square)](https://www.github.com/oh-my-fish/oh-my-fish)
+[![Nix Package](https://img.shields.io/badge/nixpkgs-fishPlugins.plugin--git-blue?style=flat-square&logo=nixos)](https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/shells/fish/plugins/plugin-git.nix)
 
 <br/>
 
@@ -23,6 +24,25 @@ fisher:
 $ fisher install jhillyerd/plugin-git
 ```
 
+Nix's home-manager:
+```nix
+{
+  # ...
+  programs.fish = {
+    enable = true;
+
+    plugins = [
+      {
+        name = "plugin-git";
+        src = pkgs.fishPlugins.plugin-git.src;
+      }
+    ];
+  };
+  # ...
+}
+
+```
+
 ## Default branch name
 
 `plugin-git` respects `init.defaultBranch` setting that was [introduced in git 2.28](https://github.blog/2020-07-27-highlights-from-git-2-28/#introducing-init-defaultbranch).
@@ -31,6 +51,64 @@ The order for resolving the default branch name is as follows:
 1. `init.defaultBranch` if it is set and the branch exists
 2. `main` if it exists
 3. `master` as fallback
+
+## Sample workflow
+
+```
+cd my-repo       # enter a git repo
+gss              # check current status
+
+.. bunch of old edits I don't want ..
+
+gclean!!         # pristine repo!!
+gcom             # checkout main/master branch
+gl               # pull changes
+gcb fix-bug      # create new fix-bug branch
+
+.. edit files ..
+
+gaa              # add (stage) all changed and new files
+gc               # commit changes
+gpu              # push to origin, set upstream
+
+.. oops, edit more files ..
+
+gcan!            # amend commit w/ all modified files, re-using message
+gp!              # force push changes
+
+.. main branch has some changes I need ..
+
+grbom            # fetch origin and rebase on main/master
+
+.. editing some files, but need to work on something else quickly ..
+
+gwip             # save WIP commit of working directory for later
+gfa              # fetch all branches from origin
+gloga            # view log graph of all recent repo activity
+gco feature      # switch to existing feature branch
+gwch             # inspect what changed recently (with diffs)
+
+.. edit lots of files ..
+
+ga file1 file2   # add just the files I want to commit
+
+.. hmm, will my tests pass with just these two files? ..
+
+gtest make test  # runs 'make test' against staged changes only
+
+.. failed! need to patch in some other changes ..
+
+gapa             # selectively stage more changes
+gtest make test
+gcm "tests pass" # commit staged w/ message
+gca              # commit all other modified files
+gp               # push
+
+.. back to my bugfix ..
+
+gco fix-bug      # checkout
+gunwip           # restore work in progress
+```
 
 ## Usage
 
@@ -55,8 +133,8 @@ The order for resolving the default branch name is as follows:
 | gbD          | `git branch -D`                                      |
 | gbda         | delete all branches merged in current HEAD           |
 | gbage        | list local branches and display their age            |
-| ggsup        | git set upstream to origin/_current-branch_          |
-| grename      | rename _old_ branch to _new_, including in origin remote |
+| ggsup        | `git branch --set-upstream-to=origin/(__git.current_branch)`  |
+| grename      | rename _old_ branch to _new_, including in origin remote      |
 
 ### Checkout
 
@@ -82,6 +160,7 @@ The order for resolving the default branch name is as follows:
 | gcav!        | `git commit -a -v --no-verify --amend`               |
 | gcm          | `git commit -m`                                      |
 | gcam         | `git commit -a -m`                                   |
+| gcs          | `git commit -S`                                      |
 | gscam        | `git commit -S -a -m`                                |
 | gcfx         | `git commit --fixup`                                 |
 
@@ -142,7 +221,7 @@ The order for resolving the default branch name is as follows:
 | Abbreviation | Command                                              |
 | ------------ | ---------------------------------------------------- |
 | gl           | `git pull`                                           |
-| ggl          | pull origin _current-branch_                         |
+| ggl          | `git pull origin (__git.current_branch)`             |
 | gup          | `git pull --rebase`                                  |
 | gupv         | `git pull --rebase -v`                               |
 | gupa         | `git pull --rebase --autostash`                      |
@@ -154,10 +233,10 @@ The order for resolving the default branch name is as follows:
 | gpo!         | `git push --force-with-lease origin`                 |
 | gpv          | `git push --no-verify`                               |
 | gpv!         | `git push --no-verify --force-with-lease`            |
-| ggp          | push origin _current-branch_                         |
-| ggp!         | `ggp --force-with-lease`                             |
-| gpu          | `ggp --set-upstream`                                 |
-| gpoat        | push all + tags to origin                            |
+| ggp          | `git push origin (__git.current_branch)`             |
+| ggp!         | `git push origin (__git.current_branch) --force-with-lease`   |
+| gpu          | `git push origin (__git.current_branch) --set-upstream`       |
+| gpoat        | `git push origin --all; and git push origin --tags`  |
 | ggpnp        | pull & push origin _current-branch_                  |
 
 ### Rebase
@@ -171,11 +250,14 @@ The order for resolving the default branch name is as follows:
 | grbm         | `git rebase (__git.default_branch)`                            |
 | grbmi        | `git rebase (__git.default_branch) --interactive`              |
 | grbmia       | `git rebase (__git.default_branch) --interactive --autosquash` |
+| grbom        | `git fetch origin (__git.default_branch); and git rebase FETCH_HEAD` |
+| grbomi       | `git fetch origin (__git.default_branch); and git rebase FETCH_HEAD --interactive` |
+| grbomia      | `git fetch origin (__git.default_branch); and git rebase FETCH_HEAD --interactive --autosquash` |
 | grbd         | `git rebase develop`                                 |
 | grbdi        | `git rebase develop --interactive`                   |
 | grbdia       | `git rebase develop --interactive --autosquash`      |
 | grbs         | `git rebase --skip`                                  |
-| ggu          | fetch & rebase _current-branch_ on top of the upstream branch |
+| ggu          | `git pull --rebase origin \(__git.current_branch\)`  |
 
 ### Remote
 
@@ -199,6 +281,7 @@ The order for resolving the default branch name is as follows:
 | gstl         | `git stash list`                                     |
 | gstp         | `git stash pop`                                      |
 | gsts         | `git stash show --text`                              |
+| gtest        | runs specified command against staged files only     |
 | gwip         | commit a work-in-progress branch                     |
 | gunwip       | uncommit the work-in-progress branch                 |
 
@@ -236,6 +319,13 @@ The order for resolving the default branch name is as follows:
 | gwtmv        | `git wortree remove`                                 |
 | gwtpr        | `git worktree prune`                                 |
 | gwtulo       | `git worktree unlock`                                |
+
+### GitLab-specific [push options](https://docs.gitlab.com/ee/user/project/push_options.html)
+
+| Abbreviation | Command                                              |
+| ------------ | ---------------------------------------------------- |
+| gmr          | Push current branch and create a merge request from it |
+| gmwps        | Same as `gmr` but set the merge request to merge when the pipeline succeeds |
 
 ### Everything Else
 
@@ -287,8 +377,8 @@ The order for resolving the default branch name is as follows:
 [mit]:            https://opensource.org/licenses/MIT
 [author]:         https://github.com/jhillyerd
 [contributors]:   https://github.com/jhillyerd/plugin-git/graphs/contributors
-[omf-link]:       https://www.github.com/oh-my-fish/oh-my-fish
+[omf-link]:       https://github.com/oh-my-fish/oh-my-fish
 [fisher-link]:    https://github.com/jorgebucaran/fisher
 
 [license-badge]:  https://img.shields.io/badge/license-MIT-007EC7.svg?style=flat-square
-[omz-git-plugin]: https://github.com/robbyrussell/oh-my-zsh/wiki/Plugin:git
+[omz-git-plugin]: https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/git/
